@@ -24,7 +24,38 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>Electric Vehicle DataGrid</title>
+
+    <!-- Force AG Grid styles -->
+    <style>
+      .ag-theme-alpine {
+        display: block !important;
+        visibility: visible !important;
+        z-index: 100 !important;
+      }
+      .ag-root-wrapper {
+        display: block !important;
+        visibility: visible !important;
+        border: 1px solid #ccc !important;
+      }
+      .ag-header, .ag-body, .ag-center-cols-container, .ag-center-cols-viewport,
+      .ag-body-viewport, .ag-row, .ag-cell, .ag-header-cell {
+        display: block !important;
+        visibility: visible !important;
+      }
+      table {
+        display: table !important;
+        visibility: visible !important;
+      }
+      tr, th, td {
+        display: table-row !important;
+        visibility: visible !important;
+      }
+      .ag-header-cell-text {
+        display: inline !important;
+        visibility: visible !important;
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
