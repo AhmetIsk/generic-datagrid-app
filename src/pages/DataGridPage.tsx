@@ -1,13 +1,13 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { AgGridReact } from "ag-grid-react";
-import type { ColDef, ICellRendererParams, IDatasource, IGetRowsParams } from "ag-grid-community";
-import { TextField, Button, MenuItem, Box, Typography, Paper, IconButton } from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Box, Typography, Paper, TextField, Button, MenuItem } from '@mui/material';
+import { ColDef, GridApi, GridOptions } from 'ag-grid-community';
 import { OverviewTable } from '../components/OverviewTable';
+import { apiService } from '../services/api.service';
+import { createGridDatasource } from '../services/grid-datasource.service';
+import ActionCellRenderer from '../components/ActionCellRenderer';
 
+// Define filter operators
 const filterOperators = [
   { label: "Contains", value: "contains" },
   { label: "Equals", value: "equals" },
@@ -16,130 +16,46 @@ const filterOperators = [
   { label: "Is empty", value: "empty" },
 ];
 
-// Set the overview fields we want to display in the grid
+// Set the overview fields to display in the grid
 const OVERVIEW_FIELDS = ['Brand', 'Model', 'BodyStyle', 'PriceEuro', 'Date'];
 
-// Generic interface for all types of data
-interface IDataRow {
-  [key: string]: any;
-  _id?: string;
+// Extend GridApi for refresh method
+interface ExtendedGridApi extends GridApi {
+  refreshServerSideStore: (params?: { purge?: boolean }) => void;
 }
 
-// Pagination metadata interface
-interface IPaginationMeta {
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-// Create a custom cell renderer component for actions
-function ActionCellRenderer(props: ICellRendererParams) {
-  const navigate = useNavigate();
-
-  const handleView = () => {
-    if (props.data && props.data._id) {
-      navigate(`/detail/${props.data._id}`);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (props.data && props.data._id) {
-      try {
-        await axios.delete(`http://localhost:5001/api/data/${props.data._id}`);
-        // Signal to refresh data
-        if (props.context && props.context.refreshData) {
-          props.context.refreshData();
-        }
-      } catch (err) {
-        console.error('Error deleting item:', err);
-        if (props.context && props.context.setError) {
-          props.context.setError('Failed to delete item. Please try again.');
-        }
-      }
-    }
-  };
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <IconButton
-        size="small"
-        color="primary"
-        onClick={handleView}
-        aria-label="view"
-        sx={{ padding: '4px', marginRight: '4px' }}
-      >
-        <VisibilityIcon fontSize="small" />
-      </IconButton>
-      <IconButton
-        size="small"
-        color="error"
-        onClick={handleDelete}
-        aria-label="delete"
-        sx={{ padding: '4px' }}
-      >
-        <DeleteIcon fontSize="small" />
-      </IconButton>
-    </div>
-  );
-}
-
-export const DataGridPage = () => {
+export const DataGridPage: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filterField, setFilterField] = useState('');
   const [filterValue, setFilterValue] = useState('');
   const [operator, setOperator] = useState('');
-  const [columns, setColumns] = useState<string[]>(OVERVIEW_FIELDS);
-  const [totalItems, setTotalItems] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
+  const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [sortModel, setSortModel] = useState<{ colId: string, sort: string } | null>(null);
-
-  // Grid reference
-  const gridRef = useRef<AgGridReact>(null);
-
-  // Context for the grid cell renderers
-  const contextValues = {
-    refreshData: () => {
-      if (gridRef.current && gridRef.current.api) {
-        gridRef.current.api.refreshInfiniteCache();
-      }
-    },
-    setError: setError
-  };
-
-  // Initialize column definitions
+  const [error, setError] = useState<string | null>(null);
+  const [columns] = useState<string[]>(OVERVIEW_FIELDS);
+  const gridApiRef = useRef<ExtendedGridApi | null>(null);
   const [colDefs, setColDefs] = useState<ColDef[]>([]);
+
+  // Create datasource
+  const datasource = useCallback(createGridDatasource, [])();
 
   // Update column definitions when columns change
   useEffect(() => {
     if (columns.length > 0) {
-      // Create data columns
-      const dynamicCols: ColDef[] = columns.map(col => {
-        let colDef: ColDef = {
-          field: col,
-          headerName: col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1'),
-          sortable: true,
-          filter: true,
-          resizable: true
-        };
+      const dynamicCols: ColDef[] = columns.map(col => ({
+        field: col,
+        headerName: col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1'),
+        sortable: true,
+        filter: true,
+        resizable: true,
+        valueFormatter:
+          col === 'PriceEuro' ? (params: any) => params.value ? `€${params.value.toLocaleString()}` : '' :
+            col === 'Date' ? (params: any) => params.value ? new Date(params.value).toLocaleDateString() : '' :
+              undefined
+      }));
 
-        // Add specific formatters for certain fields
-        if (col === 'PriceEuro') {
-          colDef.valueFormatter = (params: any) =>
-            params.value ? `€${params.value.toLocaleString()}` : '';
-        }
-
-        if (col === 'Date') {
-          colDef.valueFormatter = (params: any) =>
-            params.value ? new Date(params.value).toLocaleDateString() : '';
-        }
-
-        return colDef;
-      });
-
-      // Define the actions column separately
+      // Add the actions column
       const actionsCol: ColDef = {
         headerName: 'Actions',
         field: 'actions',
@@ -149,103 +65,61 @@ export const DataGridPage = () => {
         cellRenderer: ActionCellRenderer
       };
 
-      // Add the actions column to the end
       setColDefs([...dynamicCols, actionsCol]);
     }
   }, [columns]);
 
-  // Create datasource for infinite row model
-  const createDatasource = useCallback((): IDatasource => {
-    return {
-      getRows: async (params: IGetRowsParams) => {
-        try {
-          setLoading(true);
-          setError(null);
-
-          // Calculate current page based on startRow and endRow
-          const pageSize = params.endRow - params.startRow;
-          const page = Math.floor(params.startRow / pageSize) + 1;
-
-          // Build query parameters
-          const queryParams: any = {
-            page,
-            pageSize
-          };
-
-          // Add search if provided
-          if (search) queryParams.search = search;
-
-          // Add filter if provided
-          if (filterField && operator) {
-            queryParams.filter = filterField;
-            queryParams.operator = operator;
-            if (operator !== 'empty') {
-              queryParams.value = filterValue;
-            }
-          }
-
-          // Add sorting if provided
-          if (params.sortModel && params.sortModel.length > 0) {
-            queryParams.sortField = params.sortModel[0].colId;
-            queryParams.sortOrder = params.sortModel[0].sort;
-            setSortModel(params.sortModel[0]);
-          } else if (sortModel) {
-            queryParams.sortField = sortModel.colId;
-            queryParams.sortOrder = sortModel.sort;
-          }
-
-          console.log('Fetching page:', page, 'with size:', pageSize,
-            'startRow:', params.startRow, 'endRow:', params.endRow);
-
-          const response = await axios.get('http://localhost:5001/api/data/overview', {
-            params: queryParams,
-            withCredentials: true,
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-
-          // Handle the response based on updated backend format
-          if (response.data.success) {
-            const { rows, lastRow, pagination } = response.data;
-            setTotalItems(pagination.totalCount);
-
-            // Call the AG Grid success callback with rows and lastRow
-            params.successCallback(rows, lastRow);
-          } else {
-            setError('Failed to fetch data');
-            params.failCallback();
-          }
-        } catch (error) {
-          console.error('Error fetching data:', error);
-
-          if (axios.isAxiosError(error)) {
-            if (error.response) {
-              setError(`Error ${error.response.status}: ${error.response.data}`);
-            } else {
-              setError(`Network error: ${error.message}. Please check if the backend server is running.`);
-            }
-          } else if (error instanceof Error) {
-            setError(`Error: ${error.message}`);
-          } else {
-            setError('Unknown error occurred');
-          }
-
-          // Tell AG Grid there was an error
-          params.failCallback();
-        } finally {
-          setLoading(false);
-        }
+  // Fetch total count on component mount
+  useEffect(() => {
+    const fetchTotalCount = async () => {
+      try {
+        setLoading(true);
+        const response = await apiService.getOverviewData({
+          page: 1,
+          pageSize: 10
+        });
+        setTotalItems(response.lastRow);
+      } catch (err) {
+        console.error('Error fetching total count:', err);
+        setError('Failed to fetch data count. Please try again.');
+      } finally {
+        setLoading(false);
       }
     };
-  }, [search, filterField, operator, filterValue, sortModel]);
 
-  // Apply filters and refresh grid
+    fetchTotalCount();
+  }, []);
+
+  // Handle grid API ready
+  const onGridReady = useCallback((api: GridApi) => {
+    gridApiRef.current = api as ExtendedGridApi;
+  }, []);
+
+  // Handle row click to navigate to detail page
+  const handleRowClicked = useCallback((id: string) => {
+    navigate(`/detail/${id}`);
+  }, [navigate]);
+
+  // Apply filters programmatically
   const applyFilters = useCallback(() => {
-    if (gridRef.current && gridRef.current.api) {
-      gridRef.current.api.refreshInfiniteCache();
+    if (gridApiRef.current) {
+      gridApiRef.current.refreshServerSideStore({ purge: true });
     }
   }, []);
+
+  // Context for the grid
+  const contextValues = {
+    setError,
+    refreshGrid: applyFilters
+  };
+
+  const gridOptions: GridOptions = {
+    rowModelType: 'serverSide',
+    serverSideDatasource: datasource,
+    pagination: true,
+    paginationPageSize: 20,
+    cacheBlockSize: 20,
+  };
 
   // Default column settings
   const defaultColDef: ColDef = {
@@ -254,8 +128,6 @@ export const DataGridPage = () => {
     resizable: true,
     sortable: true
   };
-
-  const memoizedDatasource = useMemo(() => createDatasource(), [createDatasource]);
 
   return (
     <Box p={3} height="100%">
@@ -316,21 +188,22 @@ export const DataGridPage = () => {
         </Box>
       </Paper>
 
-      <Paper elevation={3} sx={{ p: 2, height: '100%', width: '100%' }}>
+      <Paper elevation={3} sx={{ p: 2, height: 'calc(100vh - 250px)', width: '100%' }}>
         <Typography variant="h5" mb={2}>
           {loading ? 'Loading Data...' : `Electric Vehicle Overview (${totalItems} items)`}
         </Typography>
-        <OverviewTable
-          columnDefs={colDefs}
-          defaultColDef={defaultColDef}
-          animateRows={true}
-          rowData={[]}
-          ref={gridRef}
-          context={contextValues}
-          loading={loading}
-          totalItems={totalItems}
-          datasource={memoizedDatasource}
-        />
+        <div style={{ height: 'calc(100% - 60px)', width: '100%' }}>
+          <OverviewTable
+            columnDefs={colDefs}
+            defaultColDef={defaultColDef}
+            context={contextValues}
+            loading={loading}
+            totalItems={totalItems}
+            onRowClicked={handleRowClicked}
+            onGridReady={onGridReady}
+            gridOptions={gridOptions}
+          />
+        </div>
       </Paper>
     </Box>
   );

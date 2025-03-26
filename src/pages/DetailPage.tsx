@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Box, Paper, Typography, Grid, CircularProgress } from '@mui/material';
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api.service';
 
 export const DetailPage = () => {
   const { id } = useParams();
@@ -15,15 +15,9 @@ export const DetailPage = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get(`http://localhost:5001/api/data/${id}`, {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        setItemData(response.data);
+        const data = await apiService.getRecordById(id as string);
+        setItemData(data);
       } catch (err) {
-        console.error('Error fetching item details:', err);
         setError('Failed to load item details. Please try again.');
       } finally {
         setLoading(false);
@@ -35,6 +29,7 @@ export const DetailPage = () => {
     }
   }, [id]);
 
+  // Loading state
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
@@ -43,6 +38,7 @@ export const DetailPage = () => {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <Box p={3}>
@@ -56,6 +52,7 @@ export const DetailPage = () => {
     );
   }
 
+  // Item not found state
   if (!itemData) {
     return (
       <Box p={3}>
@@ -69,6 +66,18 @@ export const DetailPage = () => {
     );
   }
 
+  // Format a field name from camelCase to Title Case with spaces
+  const formatFieldName = (key: string) =>
+    key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+
+  // Format a field value based on its type
+  const formatFieldValue = (value: any) => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    if (value === null) return 'N/A';
+    return String(value);
+  };
+
   return (
     <Box p={3}>
       <Paper sx={{ p: 3 }}>
@@ -81,13 +90,10 @@ export const DetailPage = () => {
             key !== '_id' && key !== '__v' ? (
               <Grid item xs={6} sm={4} key={key}>
                 <Typography variant="subtitle2" color="text.secondary">
-                  {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
+                  {formatFieldName(key)}
                 </Typography>
                 <Typography variant="body1">
-                  {value === true ? 'Yes' :
-                    value === false ? 'No' :
-                      value === null ? 'N/A' :
-                        String(value)}
+                  {formatFieldValue(value)}
                 </Typography>
               </Grid>
             ) : null
