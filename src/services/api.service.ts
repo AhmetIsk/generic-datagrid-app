@@ -33,6 +33,29 @@ export interface FilterParams {
   operator?: string;
   value?: string;
   filterModel?: any;
+  // Backward compatibility fields
+  filter2?: string;
+  operator2?: string;
+  value2?: string;
+  // New field for JSON filters
+  filtersJson?: string;
+}
+
+/**
+ * Interface for a single filter
+ */
+export interface FilterItem {
+  id: string;
+  filter: string;
+  operator: string;
+  value: string;
+}
+
+/**
+ * Interface for multiple filters
+ */
+export interface MultiFilterParams {
+  filters?: FilterItem[];
 }
 
 /**
@@ -54,7 +77,7 @@ export interface SearchParams {
 /**
  * Combined query parameters interface
  */
-export type QueryParams = PaginationParams & FilterParams & SortParams & SearchParams;
+export type QueryParams = PaginationParams & FilterParams & SortParams & SearchParams & MultiFilterParams;
 
 /**
  * API response interface for overview data
@@ -157,7 +180,29 @@ class ApiService {
    */
   async getOverviewData(params?: QueryParams): Promise<OverviewResponse> {
     try {
-      const response: AxiosResponse = await this.api.get('/api/data/overview', { params });
+      // Handle multiple filters if provided
+      let queryParams = { ...params };
+
+      // If we have multiple filters, serialize them to a JSON string
+      if (params?.filters && params.filters.length > 0) {
+        // Create clean filter objects without the ID (we don't need ID on the server)
+        const cleanFilters = params.filters.map(filter => ({
+          filter: filter.filter,
+          operator: filter.operator,
+          value: filter.value
+        }));
+
+        // Add as a JSON string parameter
+        queryParams.filtersJson = JSON.stringify(cleanFilters);
+
+        // Remove the original filters array to avoid confusion
+        delete queryParams.filters;
+
+        // Log what we're sending
+        console.log('Sending filters as JSON:', queryParams.filtersJson);
+      }
+
+      const response: AxiosResponse = await this.api.get('/api/data/overview', { params: queryParams });
       return response.data;
     } catch (error) {
       throw error;

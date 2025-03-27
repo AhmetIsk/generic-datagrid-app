@@ -1,0 +1,80 @@
+:root {
+  /* Primary colors */
+  --bmw-blue: #1c69d4;
+  --bmw-blue-rgb: 28, 105, 212;
+  --bmw-dark-blue: #0653b6;
+  --bmw-dark-blue-rgb: 6, 83, 182;
+  --bmw-light-blue: #4e92e9;
+  --bmw-light-blue-rgb: 78, 146, 233;
+
+  /* Secondary colors */
+  --bmw-red: #dc0000;
+  --bmw-red-rgb: 220, 0, 0;
+  --bmw-dark-red: #b50000;
+  --bmw-dark-red-rgb: 181, 0, 0;
+  --bmw-gold: #c69214;
+  --bmw-gold-rgb: 198, 146, 20;
+
+  /* Neutral colors */
+  --bmw-black: #262626;
+  --bmw-black-rgb: 38, 38, 38;
+  --bmw-dark-gray: #4d4d4d;
+  --bmw-dark-gray-rgb: 77, 77, 77;
+  --bmw-gray: #8e8e8e;
+  --bmw-gray-rgb: 142, 142, 142;
+  --bmw-light-gray: #e6e6e6;
+  --bmw-light-gray-rgb: 230, 230, 230;
+  --bmw-white: #ffffff;
+  --bmw-white-rgb: 255, 255, 255;
+
+  /* Additional UI colors */
+  --bmw-success: #00934a;
+  --bmw-success-rgb: 0, 147, 74;
+  --bmw-warning: #f9ba00;
+  --bmw-warning-rgb: 249, 186, 0;
+  --bmw-error: #dc0000;
+  --bmw-error-rgb: 220, 0, 0;
+  --bmw-info: #1c69d4;
+  --bmw-info-rgb: 28, 105, 212;
+
+  /* Typography */
+  --bmw-font-family: -apple-system, BlinkMacSystemFont, 'Roboto', 'Arial', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--bmw-font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--bmw-black);
+  background-color: var(--bmw-light-gray);
+}
+
+/* Apply BMW styling to MUI components globally */
+.MuiButton-contained {
+  background-color: var(--bmw-blue) !important;
+  color: var(--bmw-white) !important;
+  border-radius: 0 !important;
+  text-transform: none !important;
+  padding: 8px 24px !important;
+  box-shadow: none !important;
+}
+
+.MuiButton-contained:hover {
+  background-color: var(--bmw-dark-blue) !important;
+  box-shadow: none !important;
+}
+
+.MuiButton-outlined.error {
+  border-color: var(--bmw-red) !important;
+  color: var(--bmw-red) !important;
+}
+
+.MuiButton-outlined.error:hover {
+  background-color: rgba(var(--bmw-red-rgb), 0.04) !important;
+}
+
+.MuiPaper-root {
+  border-radius: 0 !important;
+}
+

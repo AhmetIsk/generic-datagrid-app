@@ -1,210 +1,361 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Paper, TextField, Button, MenuItem } from '@mui/material';
-import { ColDef, GridApi, GridOptions } from 'ag-grid-community';
-import { OverviewTable } from '../components/OverviewTable';
+import { Box, Typography, Card, CardContent, Divider } from '@mui/material';
+import { GridApi, ColDef, GridOptions, RowModelType } from 'ag-grid-community';
+import { gridDatasourceService, FilterOptions } from '../services/grid-datasource.service';
+import { FilterItem } from '../services/api.service';
 import { apiService } from '../services/api.service';
-import { createGridDatasource } from '../services/grid-datasource.service';
+import { OverviewTable } from '../components/table/OverviewTable';
+import { v4 as uuidv4 } from 'uuid';
 import ActionCellRenderer from '../components/ActionCellRenderer';
+import NotificationSnackbar from '../components/NotificationSnackbar';
+import { FilterPanel } from '../components/filter/FilterPanel';
+import DeleteConfirmDialog from '../components/shared/DeleteConfirmDialog';
+import { useDebounce } from '../utils/hooks';
 
-// Define filter operators
-const filterOperators = [
-  { label: "Contains", value: "contains" },
-  { label: "Equals", value: "equals" },
-  { label: "Starts with", value: "starts" },
-  { label: "Ends with", value: "ends" },
-  { label: "Is empty", value: "empty" },
-];
-
-// Set the overview fields to display in the grid
-const OVERVIEW_FIELDS = ['Brand', 'Model', 'BodyStyle', 'PriceEuro', 'Date'];
-
-// Extend GridApi for refresh method
-interface ExtendedGridApi extends GridApi {
-  refreshServerSideStore: (params?: { purge?: boolean }) => void;
+// Define search interface
+interface Search {
+  value: string;
 }
 
-export const DataGridPage: React.FC = () => {
+/**
+ * DataGrid page component
+ * Displays a data grid with filtering capabilities
+ */
+const DataGridPage: React.FC = () => {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [filterField, setFilterField] = useState('');
-  const [filterValue, setFilterValue] = useState('');
-  const [operator, setOperator] = useState('');
-  const [totalItems, setTotalItems] = useState(0);
+
+  // State for search input and debounced search
+  const [search, setSearch] = useState<Search>({ value: '' });
+  const debouncedSearch = useDebounce<Search>(search, 500); // 500ms debounce time
+
+  // State for current filter being built
+  const [currentFilter, setCurrentFilter] = useState({
+    field: '',
+    operator: '',
+    value: ''
+  });
+
+  // State for applied filters (can have multiple)
+  const [appliedFilters, setAppliedFilters] = useState<FilterItem[]>([]);
+
+  // Grid key to force re-render when needed
+  const [gridKey, setGridKey] = useState(0);
+
+  // State for loading indicator
   const [loading, setLoading] = useState(false);
+
+  // State for error message
   const [error, setError] = useState<string | null>(null);
-  const [columns] = useState<string[]>(OVERVIEW_FIELDS);
-  const gridApiRef = useRef<ExtendedGridApi | null>(null);
-  const [colDefs, setColDefs] = useState<ColDef[]>([]);
 
-  // Create datasource
-  const datasource = useCallback(createGridDatasource, [])();
+  // Reference to Grid API
+  const gridApiRef = useRef<GridApi | null>(null);
 
-  // Update column definitions when columns change
+  // State for delete confirmation dialog
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    itemId: '',
+    itemName: '',
+    isDeleting: false
+  });
+
+  // State for notifications
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
+
+  // Effect to apply debounced search
   useEffect(() => {
-    if (columns.length > 0) {
-      const dynamicCols: ColDef[] = columns.map(col => ({
-        field: col,
-        headerName: col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1'),
-        sortable: true,
-        filter: true,
-        resizable: true,
-        valueFormatter:
-          col === 'PriceEuro' ? (params: any) => params.value ? `€${params.value.toLocaleString()}` : '' :
-            col === 'Date' ? (params: any) => params.value ? new Date(params.value).toLocaleDateString() : '' :
-              undefined
-      }));
+    // Only trigger if we have a search value changes (including when cleared)
+    setLoading(true);
+    // Refresh the grid with the new search term
+    setGridKey(prev => prev + 1);
+    // Simulate some loading time
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
+  }, [debouncedSearch.value]);
 
-      // Add the actions column
-      const actionsCol: ColDef = {
-        headerName: 'Actions',
-        field: 'actions',
-        sortable: false,
-        filter: false,
-        width: 120,
-        cellRenderer: ActionCellRenderer
-      };
-
-      setColDefs([...dynamicCols, actionsCol]);
+  // Define column definitions
+  const columnDefs = useMemo<ColDef[]>(() => [
+    { field: 'Brand', headerName: 'Brand', sortable: true, filter: true, flex: 1 },
+    { field: 'Model', headerName: 'Model', sortable: true, filter: true, flex: 1 },
+    { field: 'BodyStyle', headerName: 'Body Style', sortable: true, filter: true, flex: 1 },
+    {
+      field: 'PriceEuro',
+      headerName: 'Price (€)',
+      sortable: true,
+      filter: true,
+      flex: 1,
+      valueFormatter: (params) => params.value ? `€${params.value.toLocaleString()}` : ''
+    },
+    {
+      field: 'Date',
+      headerName: 'Date',
+      sortable: true,
+      filter: true,
+      flex: 1,
+      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : ''
+    },
+    {
+      headerName: 'Actions',
+      field: 'actions',
+      sortable: false,
+      filter: false,
+      width: 120,
+      cellRenderer: ActionCellRenderer
     }
-  }, [columns]);
+  ], []);
 
-  // Fetch total count on component mount
-  useEffect(() => {
-    const fetchTotalCount = async () => {
-      try {
-        setLoading(true);
-        const response = await apiService.getOverviewData({
-          page: 1,
-          pageSize: 10
-        });
-        setTotalItems(response.lastRow);
-      } catch (err) {
-        console.error('Error fetching total count:', err);
-        setError('Failed to fetch data count. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTotalCount();
-  }, []);
-
-  // Handle grid API ready
-  const onGridReady = useCallback((api: GridApi) => {
-    gridApiRef.current = api as ExtendedGridApi;
-  }, []);
-
-  // Handle row click to navigate to detail page
-  const handleRowClicked = useCallback((id: string) => {
-    navigate(`/detail/${id}`);
-  }, [navigate]);
-
-  // Apply filters programmatically
-  const applyFilters = useCallback(() => {
-    if (gridApiRef.current) {
-      gridApiRef.current.refreshServerSideStore({ purge: true });
-    }
-  }, []);
-
-  // Context for the grid
-  const contextValues = {
-    setError,
-    refreshGrid: applyFilters
-  };
-
-  const gridOptions: GridOptions = {
-    rowModelType: 'serverSide',
-    serverSideDatasource: datasource,
-    pagination: true,
-    paginationPageSize: 20,
-    cacheBlockSize: 20,
-  };
-
-  // Default column settings
-  const defaultColDef: ColDef = {
+  // Default column definition
+  const defaultColDef = useMemo(() => ({
     flex: 1,
     minWidth: 100,
     resizable: true,
     sortable: true
+  }), []);
+
+  // Function to handle grid ready event
+  const onGridReady = useCallback((api: GridApi) => {
+    gridApiRef.current = api;
+    api.sizeColumnsToFit();
+  }, []);
+
+  // Function to apply filters and refresh the grid
+  const applyFilters = () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Create a new array of filters
+      const newFilters = [...appliedFilters];
+
+      // If we have a current filter that's valid, add it
+      if (currentFilter.field && currentFilter.operator) {
+        const newFilter: FilterItem = {
+          id: uuidv4(), // Generate unique ID
+          filter: currentFilter.field,
+          operator: currentFilter.operator,
+          value: currentFilter.value
+        };
+
+        newFilters.push(newFilter);
+
+        // Reset current filter
+        setCurrentFilter({
+          field: '',
+          operator: '',
+          value: ''
+        });
+      }
+
+      // Update applied filters
+      setAppliedFilters(newFilters);
+
+      // Force grid refresh by incrementing key
+      setGridKey(prev => prev + 1);
+
+      // Simulate delay to show loading
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      setError('Error applying filters. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  // Function to remove a specific filter
+  const removeFilter = (id: string) => {
+    setAppliedFilters(prev => prev.filter(filter => filter.id !== id));
+    setGridKey(prev => prev + 1);
+  };
+
+  // Function to clear all filters
+  const clearFilters = () => {
+    setAppliedFilters([]);
+    setSearch({ value: '' });
+    setCurrentFilter({
+      field: '',
+      operator: '',
+      value: ''
+    });
+    setGridKey(prev => prev + 1);
+  };
+
+  // Function to open delete confirmation dialog
+  const openDeleteConfirm = (itemId: string, itemName: string) => {
+    setDeleteDialog({
+      open: true,
+      itemId,
+      itemName,
+      isDeleting: false
+    });
+  };
+
+  // Function to close delete confirmation dialog
+  const closeDeleteDialog = () => {
+    setDeleteDialog({
+      ...deleteDialog,
+      open: false
+    });
+  };
+
+  // Function to handle actual deletion
+  const handleDelete = async () => {
+    setDeleteDialog(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      await apiService.deleteRecord(deleteDialog.itemId);
+
+      // Close dialog and show success notification
+      setDeleteDialog({
+        open: false,
+        itemId: '',
+        itemName: '',
+        isDeleting: false
+      });
+
+      // Show success notification
+      showNotification(`${deleteDialog.itemName} was successfully deleted`, 'success');
+
+      // Refresh the grid
+      setGridKey(prev => prev + 1);
+    } catch (err) {
+      // Show error notification
+      showNotification('Failed to delete the item. Please try again.', 'error');
+      setDeleteDialog(prev => ({ ...prev, isDeleting: false }));
+    }
+  };
+
+  // Function to show notification
+  const showNotification = (message: string, severity: 'success' | 'error') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  // Function to close notification
+  const handleCloseNotification = () => {
+    setNotification({
+      ...notification,
+      open: false
+    });
+  };
+
+  // Update context values to include delete confirmation function
+  const contextValues = {
+    setError,
+    refreshGrid: () => setGridKey(prev => prev + 1),
+    openDeleteConfirm
+  };
+
+  // Create grid options with datasource
+  const gridOptions = useMemo<GridOptions>(() => {
+    // Create filter options from state
+    const filterOptions: FilterOptions = {
+      search: debouncedSearch.value,
+      filters: appliedFilters
+    };
+
+    // Set loading state when datasource is being created
+    setLoading(true);
+
+    // Create server-side datasource
+    const datasource = gridDatasourceService.createServerSideDatasource(filterOptions);
+
+    return {
+      rowModelType: 'serverSide' as RowModelType,
+      serverSideDatasource: datasource,
+      pagination: true,
+      paginationPageSize: 20,
+      cacheBlockSize: 20,
+      onFirstDataRendered: () => {
+        setLoading(false);
+      }
+    };
+  }, [debouncedSearch.value, appliedFilters]);
+
+  // Function to handle row click (for navigation to detail view)
+  const handleRowClicked = (id: string) => {
+    navigate(`/detail/${id}`);
   };
 
   return (
-    <Box p={3} height="100%">
-      {error && (
-        <Box mb={2} p={2} bgcolor="#ffebee" color="#c62828" borderRadius={1}>
-          <strong>Error:</strong> {error}
-        </Box>
-      )}
+    <Box sx={{
+      padding: '24px'
+    }}>
+      <Typography variant="h5" sx={{
+        color: '#262626',
+        fontWeight: 500,
+        paddingBottom: '8px',
+        marginBottom: '24px',
+        borderBottom: '2px solid var(--bmw-blue)'
+      }}>
+        BMW Electric Vehicles Overview
+      </Typography>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" mb={2}>Search & Filter</Typography>
-        <Box display="flex" gap={2} flexWrap="wrap">
-          <TextField
-            label="Global Search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            variant="outlined"
-            size="small"
-          />
-          <TextField
-            label="Filter Column"
-            select
-            value={filterField}
-            onChange={(e) => setFilterField(e.target.value)}
-            variant="outlined"
-            size="small"
-            sx={{ minWidth: 150 }}
-          >
-            {columns.map((col) => (
-              <MenuItem key={col} value={col}>{col}</MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Operator"
-            select
-            value={operator}
-            onChange={(e) => setOperator(e.target.value)}
-            variant="outlined"
-            size="small"
-            sx={{ minWidth: 150 }}
-          >
-            {filterOperators.map((op) => (
-              <MenuItem key={op.value} value={op.value}>{op.label}</MenuItem>
-            ))}
-          </TextField>
-          {operator !== 'empty' && (
-            <TextField
-              label="Filter Value"
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-              variant="outlined"
-              size="small"
+      {/* Filter panel */}
+      <FilterPanel
+        currentFilter={currentFilter}
+        setCurrentFilter={setCurrentFilter}
+        appliedFilters={appliedFilters}
+        searchValue={search.value}
+        onSearchChange={(value) => setSearch({ value })}
+        onApplyFilter={applyFilters}
+        onRemoveFilter={removeFilter}
+        onClearAllFilters={clearFilters}
+        error={error}
+      />
+
+      {/* Data Grid */}
+      <Card sx={{
+        borderRadius: 0,
+        border: '1px solid #e6e6e6',
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)'
+      }}>
+        <CardContent>
+          <Box sx={{
+            width: '100%'
+          }}>
+            <OverviewTable
+              key={gridKey}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              context={contextValues}
+              onGridReady={onGridReady}
+              onRowClicked={handleRowClicked}
+              loading={loading}
+              gridOptions={gridOptions}
+              hasFilters={appliedFilters.length > 0 || !!debouncedSearch.value}
+              onClearFilters={clearFilters}
             />
-          )}
-          <Button variant="contained" onClick={applyFilters}>
-            Apply
-          </Button>
-        </Box>
-      </Paper>
+          </Box>
+        </CardContent>
+      </Card>
 
-      <Paper elevation={3} sx={{ p: 2, height: 'calc(100vh - 250px)', width: '100%' }}>
-        <Typography variant="h5" mb={2}>
-          {loading ? 'Loading Data...' : `Electric Vehicle Overview (${totalItems} items)`}
-        </Typography>
-        <div style={{ height: 'calc(100% - 60px)', width: '100%' }}>
-          <OverviewTable
-            columnDefs={colDefs}
-            defaultColDef={defaultColDef}
-            context={contextValues}
-            loading={loading}
-            totalItems={totalItems}
-            onRowClicked={handleRowClicked}
-            onGridReady={onGridReady}
-            gridOptions={gridOptions}
-          />
-        </div>
-      </Paper>
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        itemName={deleteDialog.itemName}
+        isDeleting={deleteDialog.isDeleting}
+        onCancel={closeDeleteDialog}
+        onConfirm={handleDelete}
+      />
+
+      {/* Notification Snackbar */}
+      <NotificationSnackbar
+        open={notification.open}
+        message={notification.message}
+        severity={notification.severity}
+        onClose={handleCloseNotification}
+      />
     </Box>
   );
 };
+
+export default DataGridPage;

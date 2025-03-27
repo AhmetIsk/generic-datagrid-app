@@ -57,12 +57,31 @@ dataSchema.index({
 // Create the model with explicit collection name
 const DataModel = mongoose.model('Data', dataSchema, 'datas');
 
-// ---- API routes here ----
-
-// Start server
-app.listen(5001, () => {
-  console.log('🚀 Backend API running on http://localhost:5001');
-});
+// Helper function to apply a filter to a query
+function applyFilter(query, filter, operator, value) {
+  if (filter && operator) {
+    switch (operator) {
+      case 'contains':
+        query[filter] = { $regex: value, $options: 'i' };
+        break;
+      case 'equals':
+        query[filter] = value;
+        break;
+      case 'starts':
+        query[filter] = { $regex: '^' + value, $options: 'i' };
+        break;
+      case 'ends':
+        query[filter] = { $regex: value + '$', $options: 'i' };
+        break;
+      case 'empty':
+        query[filter] = { $in: [null, '', undefined] };
+        break;
+      default:
+        break;
+    }
+  }
+  return query;
+}
 
 // Get All Data
 app.get('/api/data', async (req, res) => {
@@ -75,25 +94,7 @@ app.get('/api/data', async (req, res) => {
     }
 
     if (filter && operator) {
-        switch (operator) {
-            case 'contains':
-                query[filter] = { $regex: value, $options: 'i' };
-                break;
-            case 'equals':
-                query[filter] = value;
-                break;
-            case 'starts':
-                query[filter] = { $regex: '^' + value, $options: 'i' };
-                break;
-            case 'ends':
-                query[filter] = { $regex: value + '$', $options: 'i' };
-                break;
-            case 'empty':
-                query[filter] = { $in: [null, '', undefined] };
-                break;
-            default:
-                break;
-        }
+        query = applyFilter(query, filter, operator, value);
     }
 
     const data = await DataModel.find(query).limit(100);
@@ -102,7 +103,15 @@ app.get('/api/data', async (req, res) => {
 
 // Get Overview Data (only specified fields) with pagination
 app.get('/api/data/overview', async (req, res) => {
-    const { search, filter, operator, value, page = 1, pageSize = 10, sortField, sortOrder } = req.query;
+    console.log('Received query params:', req.query);
+
+    const {
+      search,
+      filter, operator, value, // Keep for backward compatibility
+      filtersJson, // New parameter for JSON array of filter objects
+      page = 1, pageSize = 10,
+      sortField, sortOrder
+    } = req.query;
 
     let query = {};
     let projection = {};
@@ -117,40 +126,96 @@ app.get('/api/data/overview', async (req, res) => {
         Date: 1
     };
 
-    // Apply search
-    if (search) {
-        query.$text = { $search: search };
+    // Apply search - Use direct regex approach for better reliability
+    if (search && search.trim()) {
+        const searchTerm = search.trim();
+        console.log('Applying regex search for:', searchTerm);
+
+        // Use $or to search across multiple fields with case-insensitive regex
+        query.$or = [
+            { Brand: { $regex: searchTerm, $options: 'i' } },
+            { Model: { $regex: searchTerm, $options: 'i' } },
+            { BodyStyle: { $regex: searchTerm, $options: 'i' } },
+            { PowerTrain: { $regex: searchTerm, $options: 'i' } },
+            { PlugType: { $regex: searchTerm, $options: 'i' } },
+            { Segment: { $regex: searchTerm, $options: 'i' } }
+        ];
+
+        // Log what we're searching
+        console.log(`Searching fields: Brand, Model, BodyStyle, PowerTrain, PlugType, Segment for "${searchTerm}"`);
     }
 
-    // Apply filter
-    if (filter && operator) {
-        switch (operator) {
-            case 'contains':
-                query[filter] = { $regex: value, $options: 'i' };
-                break;
-            case 'equals':
-                query[filter] = value;
-                break;
-            case 'starts':
-                query[filter] = { $regex: '^' + value, $options: 'i' };
-                break;
-            case 'ends':
-                query[filter] = { $regex: value + '$', $options: 'i' };
-                break;
-            case 'empty':
-                query[filter] = { $in: [null, '', undefined] };
-                break;
-            default:
-                break;
+    // Handle multiple filters via JSON string
+    if (filtersJson) {
+        try {
+            const filters = JSON.parse(filtersJson);
+            console.log('Parsed filters:', filters);
+
+            if (Array.isArray(filters) && filters.length > 0) {
+                // For multiple filters with existing search
+                if (query.$or && filters.length >= 1) {
+                    // If we already have a search query ($or), we need to use $and to combine with filters
+                    const searchCondition = { $or: query.$or };
+                    query = { $and: [searchCondition] };
+
+                    // Add filter conditions to the $and array
+                    if (filters.length > 1) {
+                        // For multiple filters, add them as an $and condition
+                        const filterConditions = filters.map(f => {
+                            const filterQuery = {};
+                            return applyFilter(filterQuery, f.filter, f.operator, f.value);
+                        });
+                        query.$and.push(...filterConditions);
+                    } else {
+                        // For a single filter, add it directly to $and
+                        const filterQuery = {};
+                        query.$and.push(applyFilter(filterQuery, filters[0].filter, filters[0].operator, filters[0].value));
+                    }
+                } else {
+                    // No search query, just handle filters
+                    if (filters.length > 1) {
+                        query.$and = filters.map(f => {
+                            const filterQuery = {};
+                            return applyFilter(filterQuery, f.filter, f.operator, f.value);
+                        });
+                    } else {
+                        // For a single filter, just apply it directly
+                        query = applyFilter(query, filters[0].filter, filters[0].operator, filters[0].value);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error parsing filters JSON:', error);
+            // Fall back to single filter if JSON parsing fails
+            if (filter && operator) {
+                query = applyFilter(query, filter, operator, value);
+            }
+        }
+    } else if (filter && operator) {
+        // Legacy single filter support (combined with search if present)
+        if (query.$or) {
+            // If we have a search, we need to combine with filter using $and
+            const searchCondition = { $or: query.$or };
+            const filterCondition = {};
+            applyFilter(filterCondition, filter, operator, value);
+            query = { $and: [searchCondition, filterCondition] };
+        } else {
+            // No search, just apply filter directly
+            query = applyFilter(query, filter, operator, value);
         }
     }
 
     try {
-        console.log('Overview query:', query);
+        console.log('Overview query:', JSON.stringify(query, null, 2));
         console.log('Pagination:', { page, pageSize });
+
+        // DEBUGGING: Check if there are any Tesla cars in the database
+        const teslaCount = await DataModel.countDocuments({ Brand: /tesla/i });
+        console.log(`DEBUG: Found ${teslaCount} Tesla cars in the database`);
 
         // Calculate total count for pagination
         const totalCount = await DataModel.countDocuments(query);
+        console.log('Total documents matching query:', totalCount);
 
         // Calculate skip amount - ensure values are properly parsed as integers
         const parsedPage = parseInt(page) || 1;
@@ -175,6 +240,13 @@ app.get('/api/data/overview', async (req, res) => {
         const data = await queryBuilder;
 
         console.log(`Returning ${data.length} overview items (page ${parsedPage} of ${Math.ceil(totalCount / parsedPageSize)})`);
+
+        // Debug output for the first few results
+        if (data.length > 0) {
+            console.log('Sample data:', data.slice(0, 2));
+        } else {
+            console.log('No data found for query');
+        }
 
         // Format the response to match AG Grid's expected format for infinite row model
         // AG Grid expects: { success: true, rows: data, lastRow: totalCount }
@@ -231,4 +303,19 @@ app.delete('/api/data/:id', async (req, res) => {
 app.post('/api/seed', async (req, res) => {
   await DataModel.insertMany(req.body);
   res.json({ status: 'Seeded' });
+});
+
+// Get document count (for debugging)
+app.get('/api/count', async (req, res) => {
+  try {
+    const count = await DataModel.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start server
+app.listen(5001, () => {
+  console.log('🚀 Backend API running on http://localhost:5001');
 });
