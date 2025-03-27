@@ -5,7 +5,6 @@ import BatteryChargingFullIcon from '@mui/icons-material/BatteryChargingFull';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import BoltIcon from '@mui/icons-material/Bolt';
 
-// Styles for the component
 const styles = {
   specsContainer: {
     backgroundColor: '#f5f5f5',
@@ -46,7 +45,7 @@ const styles = {
   specValueContainer: {
     display: 'flex',
     alignItems: 'baseline',
-    marginLeft: '48px' // Match the icon width + margin to align with the icon
+    marginLeft: '48px'
   },
   specValue: {
     color: 'var(--bmw-black)',
@@ -78,7 +77,6 @@ const VehicleKeySpecs: React.FC<VehicleKeySpecsProps> = ({
   return (
     <Box sx={styles.specsContainer}>
       <Grid container spacing={2}>
-        {/* Range */}
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={styles.specItem}>
             <Box sx={styles.specHeader}>
@@ -98,7 +96,6 @@ const VehicleKeySpecs: React.FC<VehicleKeySpecsProps> = ({
           </Box>
         </Grid>
 
-        {/* Acceleration */}
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={styles.specItem}>
             <Box sx={styles.specHeader}>
@@ -118,7 +115,6 @@ const VehicleKeySpecs: React.FC<VehicleKeySpecsProps> = ({
           </Box>
         </Grid>
 
-        {/* Top Speed */}
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={styles.specItem}>
             <Box sx={styles.specHeader}>
@@ -138,7 +134,6 @@ const VehicleKeySpecs: React.FC<VehicleKeySpecsProps> = ({
           </Box>
         </Grid>
 
-        {/* Fast Charge */}
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={styles.specItem}>
             <Box sx={styles.specHeader}>

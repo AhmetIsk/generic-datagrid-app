@@ -2,7 +2,6 @@
  * Utility types and functions for dialog management
  */
 
-// Dialog state interface
 export interface DeleteDialogState {
   open: boolean;
   itemId: string;
@@ -10,7 +9,6 @@ export interface DeleteDialogState {
   isDeleting: boolean;
 }
 
-// Initial delete dialog state
 export const initialDeleteDialogState: DeleteDialogState = {
   open: false,
   itemId: '',
@@ -18,14 +16,12 @@ export const initialDeleteDialogState: DeleteDialogState = {
   isDeleting: false
 };
 
-// Notification state interface
 export interface NotificationState {
   open: boolean;
   message: string;
   severity: 'success' | 'error' | 'info' | 'warning';
 }
 
-// Initial notification state
 export const initialNotificationState: NotificationState = {
   open: false,
   message: '',

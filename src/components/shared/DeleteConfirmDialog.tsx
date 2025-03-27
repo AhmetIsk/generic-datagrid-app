@@ -12,7 +12,6 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
-// Styles for the component
 const styles = {
   dialogPaper: {
     borderTop: '4px solid #dc0000',

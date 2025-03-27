@@ -6,7 +6,6 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
-// Styles for the component
 const styles = {
   snackbar: {
     minWidth: '320px',
@@ -50,11 +49,10 @@ const styles = {
   }
 };
 
-// Interface for the NotificationSnackbar props
 export interface NotificationProps {
   open: boolean;
   message: string;
-  severity?: AlertColor; // 'success' | 'info' | 'warning' | 'error'
+  severity?: AlertColor;
   duration?: number;
   onClose: () => void;
   title?: string;
@@ -76,7 +74,6 @@ const NotificationSnackbar: React.FC<NotificationProps> = ({
   vertical = 'bottom',
   horizontal = 'center'
 }) => {
-  // Get appropriate icon based on severity
   const getIcon = () => {
     switch (severity) {
       case 'success':
@@ -91,7 +88,6 @@ const NotificationSnackbar: React.FC<NotificationProps> = ({
     }
   };
 
-  // Default titles based on severity if none provided
   const getDefaultTitle = () => {
     if (title) return title;
 
@@ -108,7 +104,6 @@ const NotificationSnackbar: React.FC<NotificationProps> = ({
     }
   };
 
-  // Generate the appropriate styles for the alert based on severity
   const getAlertStyle = () => {
     switch (severity) {
       case 'success':

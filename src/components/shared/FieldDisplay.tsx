@@ -2,7 +2,6 @@ import React from 'react';
 import { Typography, Box } from '@mui/material';
 import { formatValue, getFieldLabel } from '../../utils/formatters';
 
-// Styles for the component
 const styles = {
   fieldLabel: {
     color: 'var(--bmw-gray)',
@@ -30,7 +29,6 @@ interface FieldDisplayProps {
  * A reusable component for displaying a field with label and formatted value
  */
 const FieldDisplay: React.FC<FieldDisplayProps> = ({ fieldKey, value, className }) => {
-  // Skip special fields like _id or __v
   if (fieldKey === '_id' || fieldKey === '__v') return null;
 
   const formattedValue = formatValue(fieldKey, value);

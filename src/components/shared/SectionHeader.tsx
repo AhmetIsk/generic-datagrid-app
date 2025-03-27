@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Typography, Box, Divider } from '@mui/material';
 
-// Styles for the component
 const styles = {
   sectionHeader: {
     display: 'flex',

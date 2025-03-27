@@ -2,7 +2,6 @@
  * Utility functions for formatting values
  */
 
-// Common mapping for more user-friendly field names
 export const fieldNameMapping: Record<string, string> = {
   'Brand': 'Manufacturer',
   'Model': 'Model',
@@ -21,7 +20,6 @@ export const fieldNameMapping: Record<string, string> = {
   'Date': 'Release Date'
 };
 
-// Mapping for field value formatting
 export const valueFormatters: Record<string, (value: any) => string> = {
   'AccelSec': (value) => `${value} sec`,
   'TopSpeed_KmH': (value) => `${value} km/h`,
@@ -42,12 +40,10 @@ export const valueFormatters: Record<string, (value: any) => string> = {
 export const formatValue = (key: string, value: any): string => {
   if (value === null || value === undefined) return 'N/A';
 
-  // Use custom formatter if available
   if (valueFormatters[key]) {
     return valueFormatters[key](value);
   }
 
-  // Default formatting by type
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return String(value);
 };

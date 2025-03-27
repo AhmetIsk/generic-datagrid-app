@@ -3,7 +3,6 @@ import { Box, Typography, Chip, Card, CardContent } from '@mui/material';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import EuroIcon from '@mui/icons-material/Euro';
 
-// Styles for the component
 const styles = {
   vehicleHeader: {
     display: 'flex',

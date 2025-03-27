@@ -10,13 +10,11 @@ import DataGridPage from './pages/DataGridPage';
 import { DetailPage } from './pages/DetailPage';
 import bmwTheme from './theme/bmwTheme';
 
-// Register all required AG Grid modules
 ModuleRegistry.registerModules([
   AllCommunityModule,
   ServerSideRowModelModule
 ]);
 
-// Styles for the App component
 const styles = {
   appContainer: {
     display: 'flex',
@@ -69,17 +67,15 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <Box sx={styles.appContainer}>
-          {/* Header */}
           <AppBar position="static" sx={styles.appHeader}>
             <Toolbar>
               <ElectricCarIcon sx={styles.headerIcon} />
               <Typography variant="h6" component="div" sx={styles.headerTitle}>
-                BMW Electric Vehicle DataGrid
+                BMW Electric Vehicles Overview
               </Typography>
             </Toolbar>
           </AppBar>
 
-          {/* Main Content */}
           <Container maxWidth="xl" sx={styles.mainContent}>
             <Routes>
               <Route path="/" element={<DataGridPage />} />
@@ -87,11 +83,10 @@ function App() {
             </Routes>
           </Container>
 
-          {/* Footer */}
           <Box component="footer" sx={styles.footer}>
             <Container maxWidth="lg">
               <Typography variant="body2" sx={styles.footerText}>
-                BMW Electric Vehicle DataGrid Example © {new Date().getFullYear()}
+                BMW Electric Vehicles Overview © {new Date().getFullYear()}
               </Typography>
               <Typography variant="caption" sx={styles.footerSubText}>
                 Powered by BMW's commitment to sustainable mobility

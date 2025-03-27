@@ -16,17 +16,14 @@ export const ActionCellRenderer = (props: ICellRendererParams) => {
   const id = props.data._id;
   const openDeleteConfirm = props.context?.openDeleteConfirm || (() => { });
 
-  // Get item name for the delete confirmation dialog
   const brand = props.data.Brand || '';
   const model = props.data.Model || '';
   const itemName = brand && model ? `${brand} ${model}` : 'this item';
 
-  // View button handler
   const handleView = () => {
     navigate(`/detail/${id}`);
   };
 
-  // Delete button handler - delegates to parent context
   const handleDeleteClick = () => {
     openDeleteConfirm(id, itemName);
   };
@@ -41,7 +38,6 @@ export const ActionCellRenderer = (props: ICellRendererParams) => {
         height: '100%'
       }}
     >
-      {/* View button */}
       <IconButton
         size="small"
         color="primary"
@@ -52,7 +48,6 @@ export const ActionCellRenderer = (props: ICellRendererParams) => {
         <VisibilityIcon fontSize="small" />
       </IconButton>
 
-      {/* Delete button */}
       <IconButton
         size="small"
         color="error"

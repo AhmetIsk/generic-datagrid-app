@@ -5,7 +5,6 @@ import { Typography, Box, Button, CircularProgress, Stack } from '@mui/material'
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import FilterAltOffIcon from '@mui/icons-material/FilterAltOff';
 
-// Styles for the component
 const styles = {
   tableContainer: {
     height: '600px',
@@ -92,7 +91,6 @@ interface OverviewTableProps {
   onClearFilters?: () => void;
 }
 
-// Custom "No Data" component
 const NoRowsOverlay: React.FC<{ hasFilters?: boolean; onClearFilters?: () => void }> = ({
   hasFilters,
   onClearFilters
@@ -131,7 +129,6 @@ const NoRowsOverlay: React.FC<{ hasFilters?: boolean; onClearFilters?: () => voi
   </Box>
 );
 
-// Custom loading overlay component
 const LoadingOverlay: React.FC = () => (
   <Stack
     direction="column"
@@ -163,7 +160,6 @@ const OverviewTableComponent: React.FC<OverviewTableProps> = ({
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [showEmptyOverlay, setShowEmptyOverlay] = useState<boolean>(false);
 
-  // Handle grid ready event
   const handleGridReady = useCallback((params: GridReadyEvent) => {
     setGridApi(params.api);
 
@@ -172,18 +168,15 @@ const OverviewTableComponent: React.FC<OverviewTableProps> = ({
     }
   }, [externalGridReady]);
 
-  // Handle model updated - this fires when the grid data changes
   const handleModelUpdated = useCallback((event: ModelUpdatedEvent) => {
     if (!event.api) return;
 
     const currentRowCount = event.api.getDisplayedRowCount();
     setRowCount(currentRowCount);
 
-    // Show custom overlay if no rows after data load is complete
     setShowEmptyOverlay(currentRowCount === 0 && !loading);
   }, [loading]);
 
-  // Update empty overlay status when loading changes
   useEffect(() => {
     if (gridApi) {
       if (loading) {
@@ -194,14 +187,12 @@ const OverviewTableComponent: React.FC<OverviewTableProps> = ({
     }
   }, [loading, rowCount, gridApi]);
 
-  // Combine the provided grid options with our custom ones
   const mergedGridOptions: GridOptions = {
     ...gridOptions,
-    rowModelType: 'serverSide', // Ensure server-side row model is set
+    rowModelType: 'serverSide',
     pagination: true,
     paginationPageSize: 20,
     onModelUpdated: handleModelUpdated,
-    // Server-side row model options
     serverSideDatasource: gridOptions?.serverSideDatasource,
   };
 
@@ -226,10 +217,8 @@ const OverviewTableComponent: React.FC<OverviewTableProps> = ({
           {...mergedGridOptions}
         />
 
-        {/* Custom overlay for loading state */}
         {loading && <LoadingOverlay />}
 
-        {/* Custom overlay for empty state */}
         {showEmptyOverlay && !loading && (
           <NoRowsOverlay hasFilters={hasFilters} onClearFilters={onClearFilters} />
         )}
@@ -238,5 +227,4 @@ const OverviewTableComponent: React.FC<OverviewTableProps> = ({
   );
 };
 
-// Export a memoized version of the component to prevent unnecessary re-renders
 export const OverviewTable = memo(OverviewTableComponent);

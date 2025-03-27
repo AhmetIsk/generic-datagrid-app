@@ -3,7 +3,6 @@ import { RowData } from '../types/RowData';
 import { CarData } from '../types/DomainModels';
 import { v4 as uuidv4 } from 'uuid';
 
-// Sample data for the application
 const sampleCarData: CarData[] = [
   {
     brand: 'BMW',
@@ -61,7 +60,6 @@ const sampleCarData: CarData[] = [
   }
 ];
 
-// Convert sample data to row data format
 const sampleRowData: RowData<CarData>[] = sampleCarData.map(car => ({
   id: uuidv4(),
   data: car,
@@ -78,13 +76,10 @@ export async function fetchVehicleData(
   search: string,
   filters: FilterItem[]
 ): Promise<RowData<CarData>[]> {
-  // Simulate API call delay
   return new Promise((resolve) => {
     setTimeout(() => {
-      // Filter the data based on search term and filters
       let filteredData = [...sampleRowData];
 
-      // Apply search filter if provided
       if (search) {
         const searchLower = search.toLowerCase();
         filteredData = filteredData.filter(row =>
@@ -94,7 +89,6 @@ export async function fetchVehicleData(
         );
       }
 
-      // Apply specific filters
       if (filters.length > 0) {
         filteredData = filteredData.filter(row => {
           return filters.every(filter => {
@@ -122,7 +116,7 @@ export async function fetchVehicleData(
       }
 
       resolve(filteredData);
-    }, 500); // 500ms delay to simulate network
+    }, 500);
   });
 }
 
@@ -131,7 +125,6 @@ export async function fetchVehicleData(
  * @param data Data to export
  */
 export async function exportVehicleData(data: RowData<CarData>[] | null): Promise<void> {
-  // Simulate export process
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!data || data.length === 0) {
@@ -140,11 +133,9 @@ export async function exportVehicleData(data: RowData<CarData>[] | null): Promis
       }
 
       try {
-        // Convert data to CSV format
         const headers = ['Brand', 'Model', 'Body Style', 'Segment', 'Power Train', 'Price (€)', 'Release Date'];
         const csvRows = [headers];
 
-        // Add data rows
         data.forEach(row => {
           const csvRow = [
             row.brand,
@@ -158,17 +149,14 @@ export async function exportVehicleData(data: RowData<CarData>[] | null): Promis
           csvRows.push(csvRow);
         });
 
-        // Create CSV content
         const csvContent = csvRows.map(row => row.join(',')).join('\n');
 
-        // Trigger download in a real application
-        // In this example, we just simulate the export
         console.log('Exported data:', csvContent);
 
         resolve();
       } catch (error) {
         reject(error);
       }
-    }, 1000); // 1s delay to simulate export process
+    }, 1000);
   });
 }

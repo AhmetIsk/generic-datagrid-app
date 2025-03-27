@@ -2,7 +2,6 @@ import React from 'react';
 import { Box, Typography, Grid, Paper } from '@mui/material';
 import { formatValue, getFieldLabel } from '../../utils/formatters';
 
-// Styles for the component
 const styles = {
   sectionContainer: {
     marginBottom: '32px'
@@ -70,12 +69,10 @@ const VehicleDetailsSection: React.FC<VehicleDetailsSectionProps> = ({
   fields,
   itemData
 }) => {
-  // Filter out fields that don't have values
   const filteredFields = fields.filter(field => itemData[field] !== undefined);
 
   if (filteredFields.length === 0) return null;
 
-  // Render individual field
   const renderField = (key: string) => {
     if (key === '_id' || key === '__v') return null;
 
