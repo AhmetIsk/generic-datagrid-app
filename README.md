@@ -10,6 +10,8 @@ A React application that showcases how to implement and utilize AG Grid for disp
 - **CRUD Operations**: View detailed information and delete records
 - **Material UI**: Modern and responsive user interface built with Material UI components
 - **Responsive Design**: Adapts to different screen sizes and devices
+- **Error Logging System**: Database-powered error tracking with detailed context information
+- **Error Monitoring**: API endpoints for viewing and managing system errors
 
 ## Tech Stack
 
@@ -19,6 +21,7 @@ A React application that showcases how to implement and utilize AG Grid for disp
 - **Material UI**: React component library implementing Google's Material Design
 - **Axios**: Promise-based HTTP client
 - **React Router**: Navigation and routing
+- **MongoDB**: NoSQL database for data and error log storage
 
 ## Getting Started
 
@@ -65,6 +68,8 @@ The application will be available at `http://localhost:3000`.
   - **DataGridPage.tsx**: Main grid view with filtering
   - **DetailPage.tsx**: Detail view for individual records
 - **src/App.tsx**: Main application component and routing
+- **backend/**: Server-side code
+  - **index.js**: Main Express server with API endpoints and error logging
 
 ## Usage
 
