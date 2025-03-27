@@ -20,7 +20,6 @@ import VehicleHeader from '../components/detail/VehicleHeader';
 import VehicleKeySpecs from '../components/detail/VehicleKeySpecs';
 import VehicleDetailsSection from '../components/detail/VehicleDetailsSection';
 
-// Styles for the component
 const styles = {
   pageContainer: {
     padding: '24px',
@@ -138,7 +137,6 @@ const styles = {
   }
 };
 
-// Group fields into logical sections
 const fieldGroups = {
   main: ['Brand', 'Model', 'Segment', 'BodyStyle', 'Date'],
   performance: ['AccelSec', 'TopSpeed_KmH', 'PowerTrain'],
@@ -161,13 +159,11 @@ export const DetailPage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State for delete confirmation dialog
   const [deleteDialog, setDeleteDialog] = useState({
     open: false,
     isDeleting: false
   });
 
-  // State for notification
   const [notification, setNotification] = useState({
     open: false,
     message: '',
@@ -193,7 +189,6 @@ export const DetailPage = () => {
     }
   }, [id]);
 
-  // Loading state
   if (loading) {
     return (
       <Box sx={styles.loadingContainer}>
@@ -205,7 +200,6 @@ export const DetailPage = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <Box p={3}>
@@ -228,7 +222,6 @@ export const DetailPage = () => {
     );
   }
 
-  // Item not found state
   if (!itemData) {
     return (
       <Box p={3}>
@@ -253,11 +246,9 @@ export const DetailPage = () => {
     );
   }
 
-  // Extract vehicle data
   const brand = itemData.Brand || '';
   const model = itemData.Model || '';
 
-  // Function to open delete confirmation dialog
   const openDeleteConfirm = () => {
     setDeleteDialog({
       open: true,
@@ -265,7 +256,6 @@ export const DetailPage = () => {
     });
   };
 
-  // Function to close delete confirmation dialog
   const closeDeleteDialog = () => {
     setDeleteDialog({
       ...deleteDialog,
@@ -273,7 +263,6 @@ export const DetailPage = () => {
     });
   };
 
-  // Function to handle actual deletion
   const handleDelete = async () => {
     if (!id) return;
 
@@ -282,13 +271,10 @@ export const DetailPage = () => {
     try {
       await apiService.deleteRecord(id);
 
-      // Show success notification
       showNotification(`${brand} ${model} was successfully deleted`, 'success');
 
-      // Navigate back to the overview page
       navigate('/');
     } catch (err) {
-      // Show error notification
       showNotification('Failed to delete the item. Please try again.', 'error');
 
       setDeleteDialog(prev => ({
@@ -299,7 +285,6 @@ export const DetailPage = () => {
     }
   };
 
-  // Function to show notification
   const showNotification = (message: string, severity: 'success' | 'error') => {
     setNotification({
       open: true,
@@ -308,7 +293,6 @@ export const DetailPage = () => {
     });
   };
 
-  // Function to close notification
   const handleCloseNotification = () => {
     setNotification({
       ...notification,
@@ -318,7 +302,6 @@ export const DetailPage = () => {
 
   return (
     <Box sx={styles.pageContainer}>
-      {/* Breadcrumbs navigation */}
       <Breadcrumbs
         aria-label="breadcrumb"
         sx={styles.breadcrumbs}
@@ -341,7 +324,6 @@ export const DetailPage = () => {
       </Breadcrumbs>
 
       <Paper sx={styles.paper}>
-        {/* Header with car name and price */}
         <VehicleHeader
           brand={brand}
           model={model}
@@ -350,7 +332,6 @@ export const DetailPage = () => {
           price={itemData.PriceEuro}
         />
 
-        {/* Key specifications highlights */}
         <VehicleKeySpecs
           range={itemData.Range_Km}
           acceleration={itemData.AccelSec}
@@ -358,7 +339,6 @@ export const DetailPage = () => {
           fastCharge={itemData.FastCharge_KmH}
         />
 
-        {/* Vehicle Details Sections */}
         <VehicleDetailsSection
           title="Vehicle Information"
           icon={sectionIcons.main}
@@ -387,7 +367,6 @@ export const DetailPage = () => {
           itemData={itemData}
         />
 
-        {/* Action Buttons */}
         <Box sx={styles.actionButtons}>
           <Box sx={styles.buttonContainer}>
             <Button
@@ -422,7 +401,6 @@ export const DetailPage = () => {
         </Box>
       </Paper>
 
-      {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={deleteDialog.open}
         itemName={`${brand} ${model}`}
@@ -431,7 +409,6 @@ export const DetailPage = () => {
         onConfirm={handleDelete}
       />
 
-      {/* Notification Snackbar */}
       <NotificationSnackbar
         open={notification.open}
         message={notification.message}
